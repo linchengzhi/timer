@@ -125,7 +125,9 @@ func (tw *TimeWheel) setTimer(key int64, num int, delay int64, j job, data ...in
 	task.job = j
 	task.data = data
 	if delay < tw.interval {
-		tw.addNowChan <- task
+		for i := 0; i < task.num; i++ {
+			tw.addNowChan <- task
+		}
 	} else {
 		tw.addChan <- task
 	}
@@ -180,7 +182,6 @@ func (tw *TimeWheel) do() {
 
 func (tw *TimeWheel) doNow(task *Task) {
 	go tw.job(task.data)
-	go tw.repeat([]*Task{task})
 }
 
 func (tw *TimeWheel) repeat(tasks[]*Task) {
