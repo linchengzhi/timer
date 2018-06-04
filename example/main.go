@@ -18,9 +18,9 @@ func main() {
 	key := tw.AddRepeat(-1, 1000, "always repeat test") //当循环次数为-1时，无限循环
 
 	time.Sleep(5 * time.Second)
-	tw.Remove(key)	//移除定时任务
+	tw.Cancel(key)	//移除定时任务
 	//time.Sleep(2*time.Second)
-	//tw.Stop() //停止定时器
+	//tw.Exit() //停止定时器
 	select {}
 }
 
