@@ -150,6 +150,7 @@ func (tw *TimeWheel) cancel(key int64) {
 }
 
 func (tw *TimeWheel) do() {
+	var repeat = make([]*Task, 0)
 	l := tw.slots[tw.currentRuling]
 	for e := l.Front(); e != nil; {
 		task := e.Value.(*Task)
@@ -167,17 +168,21 @@ func (tw *TimeWheel) do() {
 		l.Remove(e)
 		delete(tw.timer, task.key)
 		e = next
-		go tw.repeat(task)
+		repeat = append(repeat, task)
+	}
+	go tw.repeat(repeat)
+}
+
+func (tw *TimeWheel) repeat(tasks[]*Task) {
+	for _, task := range tasks {
+		if task.num == 1 {
+			return
+		}
+		num := task.num - 1
+		if task.num == -1 {
+			num = -1
+		}
+		tw.setTimer(task.key, num, task.delay, task.job, task.data...)
 	}
 }
 
-func (tw *TimeWheel) repeat(task *Task) {
-	if task.num == 1 {
-		return
-	}
-	num := task.num - 1
-	if task.num == -1 {
-		num = -1
-	}
-	tw.setTimer(task.key, num, task.delay, task.job, task.data...)
-}
