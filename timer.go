@@ -32,8 +32,9 @@ type TimeWheel struct {
 	currentRuling int   //当前刻度
 	key           int64 //定时器标识
 	addChan       chan *Task
-	cancelChan    chan int64
-	exitChan      chan bool
+	addNowChan    chan *Task	//添加任务后马上做
+	removeChan    chan int64
+	stopChan      chan bool
 }
 
 //新建并设置定时器 默认间隔为1秒
@@ -46,8 +47,9 @@ func New(j job, num ... int64) *TimeWheel {
 	}
 	tw.slotNum = slot_num
 	tw.addChan = make(chan *Task)
-	tw.cancelChan = make(chan int64)
-	tw.exitChan = make(chan bool)
+	tw.addNowChan = make(chan *Task)
+	tw.removeChan = make(chan int64)
+	tw.stopChan = make(chan bool)
 	tw.ticker = time.NewTicker(time.Duration(tw.interval) * time.Millisecond)
 	tw.slots = make([]*list.List, tw.slotNum)
 	for i := int64(0); i < tw.slotNum; i++ {
@@ -60,8 +62,8 @@ func New(j job, num ... int64) *TimeWheel {
 }
 
 // Stop 停止时间轮
-func (tw *TimeWheel) Exit() {
-	tw.exitChan <- true
+func (tw *TimeWheel) Stop() {
+	tw.stopChan <- true
 }
 
 //参数 延迟时间(毫秒) 回调函数, 回调函数的参数
@@ -84,8 +86,8 @@ func (tw *TimeWheel) AddRepeatHasFunc(num int, delay int64, j job, data ...inter
 }
 
 //移除定时任务
-func (tw *TimeWheel) Cancel(key int64) {
-	tw.cancelChan <- key
+func (tw *TimeWheel) Remove(key int64) {
+	tw.removeChan <- key
 }
 
 func (tw *TimeWheel) start() {
@@ -98,11 +100,13 @@ func (tw *TimeWheel) start() {
 				tw.currentRuling++
 			}
 			tw.do()
+		case task := <-tw.addNowChan:
+			tw.doNow(task)
 		case task := <-tw.addChan:
 			tw.add(task)
-		case key := <-tw.cancelChan:
-			tw.cancel(key)
-		case <-tw.exitChan:
+		case key := <-tw.removeChan:
+			tw.remove(key)
+		case <-tw.stopChan:
 			tw.ticker.Stop()
 			return
 		}
@@ -115,15 +119,16 @@ func (tw *TimeWheel) setTimer(key int64, num int, delay int64, j job, data ...in
 		key = tw.key
 	}
 	task := new(Task)
-	if delay < tw.interval {
-		delay = tw.interval
-	}
 	task.delay = delay
 	task.key = key
 	task.num = num
 	task.job = j
 	task.data = data
-	tw.addChan <- task
+	if delay < tw.interval {
+		tw.addNowChan <- task
+	} else {
+		tw.addChan <- task
+	}
 	return task.key
 }
 
@@ -134,7 +139,7 @@ func (tw *TimeWheel) add(task *Task) {
 	tw.timer[task.key] = task.ruling
 }
 
-func (tw *TimeWheel) cancel(key int64) {
+func (tw *TimeWheel) remove(key int64) {
 	ruling, ok := tw.timer[key]
 	if !ok {
 		return
@@ -173,6 +178,11 @@ func (tw *TimeWheel) do() {
 	go tw.repeat(repeat)
 }
 
+func (tw *TimeWheel) doNow(task *Task) {
+	go tw.job(task.data)
+	go tw.repeat([]*Task{task})
+}
+
 func (tw *TimeWheel) repeat(tasks[]*Task) {
 	for _, task := range tasks {
 		if task.num == 1 {
@@ -185,4 +195,3 @@ func (tw *TimeWheel) repeat(tasks[]*Task) {
 		tw.setTimer(task.key, num, task.delay, task.job, task.data...)
 	}
 }
-

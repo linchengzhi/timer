@@ -10,7 +10,7 @@ var start = time.Now().Unix()
 
 func main() {
 	tw := timer.New(A, 1000) //参数：回调的函数 func(...interface{}) 间隔时间（可不填，默认为1000毫秒）
-	tw.Add(1000, "test")     //添加一个定时任务 参数：延时时间 回调函数的参数
+	tw.Add(1000, "test")     //添加一个定时任务 参数：延时时间 回调函数的参数 若延时小于间隔时间，则马上执行
 	tw.Add(2000, 123456789)
 	tw.AddRepeat(3, 1000, "repeat test")         //重复定时任务3次
 	tw.AddHasFunc(2000, A2, "a2 test")           //指定回调函数A2
