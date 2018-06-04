@@ -13,9 +13,14 @@ func main() {
 	tw.Add(1000, "test")     //添加一个定时任务 参数：延时时间 回调函数的参数
 	tw.Add(2000, 123456789)
 	tw.AddRepeat(3, 1000, "repeat test")         //重复定时任务3次
-	tw.AddRepeat(-1, 1000, "always repeat test") //当循环次数为-1时，无限循环
 	tw.AddHasFunc(2000, A2, "a2 test")           //指定回调函数A2
 	tw.AddRepeatHasFunc(2, 2000, A2, "a2 test")  //重复2次， 指定回调函数A2
+	key := tw.AddRepeat(-1, 1000, "always repeat test") //当循环次数为-1时，无限循环
+
+	time.Sleep(5 * time.Second)
+	tw.Remove(key)	//移除定时任务
+	//time.Sleep(2*time.Second)
+	//tw.Stop() //停止定时器
 	select {}
 }
 
