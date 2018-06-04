@@ -33,8 +33,8 @@ type TimeWheel struct {
 	key           int64 //定时器标识
 	addChan       chan *Task
 	addNowChan    chan *Task	//添加任务后马上做
-	removeChan    chan int64
-	stopChan      chan bool
+	cancelChan    chan int64
+	exitChan      chan bool
 }
 
 //新建并设置定时器 默认间隔为1秒
@@ -48,8 +48,8 @@ func New(j job, num ... int64) *TimeWheel {
 	tw.slotNum = slot_num
 	tw.addChan = make(chan *Task)
 	tw.addNowChan = make(chan *Task)
-	tw.removeChan = make(chan int64)
-	tw.stopChan = make(chan bool)
+	tw.cancelChan = make(chan int64)
+	tw.exitChan = make(chan bool)
 	tw.ticker = time.NewTicker(time.Duration(tw.interval) * time.Millisecond)
 	tw.slots = make([]*list.List, tw.slotNum)
 	for i := int64(0); i < tw.slotNum; i++ {
@@ -62,8 +62,8 @@ func New(j job, num ... int64) *TimeWheel {
 }
 
 // Stop 停止时间轮
-func (tw *TimeWheel) Stop() {
-	tw.stopChan <- true
+func (tw *TimeWheel) Exit() {
+	tw.exitChan <- true
 }
 
 //参数 延迟时间(毫秒) 回调函数, 回调函数的参数
@@ -86,8 +86,8 @@ func (tw *TimeWheel) AddRepeatHasFunc(num int, delay int64, j job, data ...inter
 }
 
 //移除定时任务
-func (tw *TimeWheel) Remove(key int64) {
-	tw.removeChan <- key
+func (tw *TimeWheel) Cancel(key int64) {
+	tw.cancelChan <- key
 }
 
 func (tw *TimeWheel) start() {
@@ -104,9 +104,9 @@ func (tw *TimeWheel) start() {
 			tw.doNow(task)
 		case task := <-tw.addChan:
 			tw.add(task)
-		case key := <-tw.removeChan:
-			tw.remove(key)
-		case <-tw.stopChan:
+		case key := <-tw.cancelChan:
+			tw.cancel(key)
+		case <-tw.exitChan:
 			tw.ticker.Stop()
 			return
 		}
@@ -139,7 +139,7 @@ func (tw *TimeWheel) add(task *Task) {
 	tw.timer[task.key] = task.ruling
 }
 
-func (tw *TimeWheel) remove(key int64) {
+func (tw *TimeWheel) cancel(key int64) {
 	ruling, ok := tw.timer[key]
 	if !ok {
 		return
