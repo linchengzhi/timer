@@ -167,9 +167,9 @@ func (tw *TimeWheel) do() {
 			continue
 		}
 		if task.job == nil {
-			go tw.job(task.data)
+			go tw.job(task.data...)
 		} else {
-			go task.job(task.data)
+			go task.job(task.data...)
 		}
 		next := e.Next()
 		l.Remove(e)
